@@ -90,6 +90,51 @@ def train_control_model(model, optimizer, dataloader):
         total_loss = total_loss + loss.detach()
     return total_loss, (final_pred_loss, final_autoencoder_loss, final_supervised_loss)
 
+def train_model_2(model, optimizer, dataloader):
+    '''
+    Trains the control model for a single epoch.
+    The outputs of state vector and control vector's encoders are summed and passed to the Koopman operator.
+    '''
+    model.train()
+    device = next(model.parameters()).device
+    total_loss = 0
+    mseLoss = nn.MSELoss()
+    final_pred_loss = 0
+    final_autoencoder_loss = 0
+    final_supervised_loss = 0
+
+    for x0, x1, u0, hp1 in dataloader:
+        # here we calculate supervised loss
+        y0 = model.encoder(x0)
+        Bu0 = model.B(u0)
+        obs = y0 + Bu0
+        hp1_hat = model.lr(obs)
+        supervised_loss = mseLoss(hp1, hp1_hat)
+
+        # regularization of the supervised loss
+        supervised_loss_l1 = torch.norm(model.lr.weight, p=1)
+
+        # autoencoder loss
+        x0_hat = model.decoder(model.encoder(x0))
+        autoencoder_loss = mseLoss(x0, x0_hat)
+
+        # one step prediction loss
+        x1_hat = model(x0.to(device), u0.to(device))
+        prediction_loss = mseLoss(x1, x1_hat)
+
+        loss = prediction_loss + autoencoder_loss + supervised_loss + 0.01 * supervised_loss_l1
+        final_pred_loss += prediction_loss.item()
+        final_autoencoder_loss += autoencoder_loss.item()
+        final_supervised_loss += supervised_loss.item() + 0.01 * supervised_loss_l1.item()
+
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss = total_loss + loss.detach()
+    return total_loss, (final_pred_loss, final_autoencoder_loss, final_supervised_loss)
+
 class DESPAWN_preprocessor:
     def __init__(self, despawn_params):
         self.despawn_params = despawn_params

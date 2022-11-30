@@ -1,3 +1,9 @@
+# In this file we model the RUL using the modified Deep Koopman approach.
+# The state space vector and the control vector are encoded by different MLPs.
+# The results are concatenated and passed to the linear Koopman operator.
+# The output of the Koopman operator are decoded to the state space vector.
+
+
 import matplotlib.pyplot as plt
 import joblib
 import pandas as pd
