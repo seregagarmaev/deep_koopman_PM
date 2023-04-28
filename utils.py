@@ -7,6 +7,172 @@ import tensorflow.keras as keras
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 from despawn.despawn import createDeSpaWN
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+
+
+def train_model_exp1(model, optimizer, dataloader):
+    '''
+    Trains the model for a single epoch.
+    '''
+    model.train()
+    device = next(model.parameters()).device
+    total_loss = 0
+    mseLoss = nn.MSELoss()
+    final_supervised_loss = 0
+    final_reconstruction_loss = 0
+
+    for x, hp in dataloader:
+        # here we calculate supervised loss
+        obs = model.encoder(x)
+        hp_hat = model.lr(obs)
+        supervised_loss = mseLoss(hp, hp_hat) + 0.01 * torch.norm(model.lr.weight, p=1)
+
+        # reconstruction loss
+        x_hat = model.decoder(model.encoder(x))
+        reconstruction_loss = mseLoss(x, x_hat)
+
+        loss = reconstruction_loss + supervised_loss
+        final_supervised_loss += supervised_loss.item()
+        final_reconstruction_loss += reconstruction_loss.item()
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss = total_loss + loss.detach()
+    return total_loss, (final_supervised_loss, final_reconstruction_loss)
+
+def train_model_exp2(model, optimizer, dataloader):
+    '''
+    Trains the model for a single epoch.
+    '''
+    model.train()
+    device = next(model.parameters()).device
+    total_loss = 0
+    mseLoss = nn.MSELoss()
+    final_supervised_loss = 0
+    final_prediction_loss = 0
+
+    for x0, x1, hp in dataloader:
+        # here we calculate supervised loss
+        obs = model.encoder(x0)
+        hp_hat = model.lr(obs)
+        supervised_loss = mseLoss(hp, hp_hat) + 0.01 * torch.norm(model.lr.weight, p=1)
+
+        # prediction loss
+        x1_hat = model.decoder(model.encoder(x0))
+        prediction_loss = mseLoss(x1, x1_hat)
+
+        loss =  supervised_loss + prediction_loss
+        final_supervised_loss += supervised_loss.item()
+        final_prediction_loss += prediction_loss.item()
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss = total_loss + loss.detach()
+    return total_loss, (final_supervised_loss, final_prediction_loss)
+
+def train_model_exp3(model, optimizer, dataloader):
+    '''
+    Trains the model for a single epoch.
+    '''
+    model.train()
+    device = next(model.parameters()).device
+    total_loss = 0
+    mseLoss = nn.MSELoss()
+    final_supervised_loss = 0
+    final_prediction_loss = 0
+    final_reconstruction_loss = 0
+
+    for x0, x1, hp in dataloader:
+        # here we calculate supervised loss
+        obs = model.encoder(x0)
+        hp_hat = model.lr(obs)
+        supervised_loss = mseLoss(hp, hp_hat) + 0.01 * torch.norm(model.lr.weight, p=1)
+
+        # prediction loss
+        x1_hat = model(x0)
+        prediction_loss = mseLoss(x1, x1_hat)
+
+        # reconstruction loss
+        x0_hat = model.decoder(model.encoder(x0))
+        reconstruction_loss = mseLoss(x0, x0_hat)
+
+        loss =  supervised_loss + prediction_loss
+        final_supervised_loss += supervised_loss.item()
+        final_prediction_loss += prediction_loss.item()
+        final_reconstruction_loss += reconstruction_loss.item()
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss = total_loss + loss.detach()
+    return total_loss, (final_supervised_loss, final_prediction_loss, final_reconstruction_loss)
+
+
+
+
+
+def custom_rul_metric(rul_hat, w=100):
+    n = len(rul_hat)
+    metric = []
+    for i in range(0, n, w):
+        rul_hat_slice = rul_hat[i:i+w].reshape(-1, 1)
+        x = np.arange(i, i+rul_hat_slice.shape[0], 1).reshape(-1, 1)
+        lr = LinearRegression().fit(x, rul_hat_slice)
+        prediction = lr.predict(x)
+        b = lr.intercept_
+        a = (prediction[10] - prediction[0]) / 10
+        x0 = -b / a
+        error = x0 - n
+        metric.append(error)
+        plt.figure(figsize=(10, 10))
+        plt.plot(x, prediction, label='pred')
+        plt.plot(np.arange(len(rul_hat)), rul_hat, label='true', alpha=0.1)
+        plt.savefig(f'plots/experiment_1/temp/pred_{i}.png')
+        plt.close()
+
+    return metric
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def train_model(model, optimizer, dataloader):
@@ -24,6 +190,7 @@ def train_model(model, optimizer, dataloader):
         y1 = model.K(y0)
         hp1_hat = model.lr(y0)
         supervised_loss = mseLoss(hp1, hp1_hat)
+
 
         # regularization of the supervised loss
         supervised_loss_l1 = torch.norm(model.lr.weight, p=1)
@@ -120,6 +287,49 @@ def train_model_2(model, optimizer, dataloader):
 
         # one step prediction loss
         x1_hat = model(x0.to(device), u0.to(device))
+        prediction_loss = mseLoss(x1, x1_hat)
+
+        loss = prediction_loss + autoencoder_loss + supervised_loss + 0.01 * supervised_loss_l1
+        final_pred_loss += prediction_loss.item()
+        final_autoencoder_loss += autoencoder_loss.item()
+        final_supervised_loss += supervised_loss.item() + 0.01 * supervised_loss_l1.item()
+
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss = total_loss + loss.detach()
+    return total_loss, (final_pred_loss, final_autoencoder_loss, final_supervised_loss)
+
+def train_model_3(model, optimizer, dataloader):
+    '''
+    Trains the control model for a single epoch.
+    The state and control vectors are encoded and passed to the Koopman operator.
+    '''
+    model.train()
+    device = next(model.parameters()).device
+    total_loss = 0
+    mseLoss = nn.MSELoss()
+    final_pred_loss = 0
+    final_autoencoder_loss = 0
+    final_supervised_loss = 0
+
+    for x0, x1, hp1 in dataloader:
+        # here we calculate supervised loss
+        y0 = model.encoder(x0)
+        hp1_hat = model.lr(y0)
+        supervised_loss = mseLoss(hp1, hp1_hat)
+
+        # regularization of the supervised loss
+        supervised_loss_l1 = torch.norm(model.lr.weight, p=1)
+
+        # autoencoder loss
+        x0_hat = model.decoder(model.encoder(x0))
+        autoencoder_loss = mseLoss(x0, x0_hat)
+
+        # one step prediction loss
+        x1_hat = model(x0.to(device))
         prediction_loss = mseLoss(x1, x1_hat)
 
         loss = prediction_loss + autoencoder_loss + supervised_loss + 0.01 * supervised_loss_l1

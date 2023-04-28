@@ -142,9 +142,9 @@ class HardThresholdAssym(tf.keras.layers.Layer):
 
     def build(self, input_shape):
         self.thrP = self.add_weight(shape     = (1,1,1,1), initializer=self.init,
-                                    trainable = self.trainBias,      name='threshold+')
+                                    trainable = self.trainBias,      name='threshold_plus')
         self.thrN = self.add_weight(shape     = (1,1,1,1), initializer=self.init,
-                                    trainable = self.trainBias,      name='threshold-')
+                                    trainable = self.trainBias,      name='threshold_minus')
 
         super(HardThresholdAssym, self).build(input_shape)
 

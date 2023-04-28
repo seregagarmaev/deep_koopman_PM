@@ -8,16 +8,40 @@ eval_data_path = f'../DATASETS/cnc_milling_machine/c{eval_machine}'
 data_columns = ['Fx', 'Fy', 'Fz', 'Vx', 'Vy', 'Vz', 'AE-RMS']
 wear_threshold = 150
 
-model_params = {
-    'indim': 3,
+model_params_exp1 = {
+    'indim': 18,
     'hidden_dim': 100,
     'obsdim': 10,
-    'outdim': 6,
+    'outdim': 18,
     'lr': 0.001,
-    'epochs': 50,
+    'epochs': 10,
     'bs': 1028,
-    'n_targets': 1,  # 3 in case of wear, 1 in case of RUL modelling
+    'n_targets': 1,
 }
+
+model_params_exp2 = {
+    'indim': 18,
+    'hidden_dim': 100,
+    'obsdim': 10,
+    'outdim': 18,
+    'lr': 0.001,
+    'epochs': 10,
+    'bs': 1028,
+    'n_targets': 1,
+}
+
+model_params_exp3 = {
+    'indim': 18,
+    'hidden_dim': 100,
+    'obsdim': 10,
+    'outdim': 18,
+    'lr': 0.001,
+    'epochs': 10,
+    'bs': 1028,
+    'n_targets': 1,
+}
+
+
 
 control_model_params = {
     'indim': 9,
@@ -27,6 +51,17 @@ control_model_params = {
     'controldim': 9,
     'lr': 0.001,
     'epochs': 10,
+    'bs': 1028,
+    'n_targets': 1,  # 3 in case of wear, 1 in case of RUL modelling
+}
+
+model_params3 = {
+    'indim': 18,
+    'hidden_dim': 50,
+    'obsdim': 10,
+    'outdim': 18,
+    'lr': 0.001,
+    'epochs': 6,
     'bs': 1028,
     'n_targets': 1,  # 3 in case of wear, 1 in case of RUL modelling
 }
